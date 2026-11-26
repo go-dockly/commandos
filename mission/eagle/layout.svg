@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" viewBox="0 0 100 100">
+<rect width="100" height="100" fill="#343b32"/>
+<rect x="12" y="8" width="76" height="3" fill="#96958b"/><rect x="12" y="8" width="3" height="53" fill="#96958b"/><rect x="85" y="8" width="3" height="63" fill="#96958b"/><rect x="12" y="61" width="32" height="3" fill="#96958b"/><rect x="60" y="61" width="28" height="3" fill="#96958b"/>
+<text x="51" y="5" fill="#eee" font-size="2.5" text-anchor="middle">MAIN GATE</text>
+<rect x="37" y="12" width="28" height="19" fill="#817c70" stroke="#d3c9b5" stroke-width=".5"/><text x="51" y="22" fill="#fff" font-size="3" text-anchor="middle">BARRACKS</text>
+<rect x="78" y="25" width="8" height="8" fill="#9a8b6f" stroke="#e0d0b2" stroke-width=".5"/><text x="82" y="30" fill="#fff" font-size="2.2" text-anchor="middle">TOWER</text>
+<g fill="#786a53" stroke="#c2ad86" stroke-width=".3"><rect x="33" y="42" width="4" height="3"/><rect x="38" y="45" width="4" height="3"/><circle cx="55" cy="48" r="2"/><rect x="66" y="39" width="4" height="3"/></g>
+<g fill="#526c49" stroke="#92a478" stroke-width=".3"><circle cx="19" cy="74" r="4"/><circle cx="28" cy="81" r="4.5"/><circle cx="42" cy="78" r="4"/><circle cx="60" cy="84" r="4.5"/><circle cx="73" cy="76" r="4"/><circle cx="82" cy="86" r="3.5"/></g>
+<g fill="none" stroke="#ffcc66" stroke-width=".6" stroke-dasharray="1.5 1"><polyline points="25,22 25,48 42,48"/><polyline points="46,36 65,36 65,54 46,54 46,36"/><polyline points="74,32 82,48 74,55"/></g><g fill="#ffcc66"><circle cx="25" cy="22" r="1.5"/><circle cx="46" cy="36" r="1.5"/><circle cx="74" cy="32" r="1.5"/></g>
+<g fill="none" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="8,48 20,48 25,42 35,40" stroke="#e16e58"/><polyline points="12,85 25,75 35,67 45,58" stroke="#7dc69a"/><polyline points="92,70 86,60 82,48 72,40" stroke="#e16e58"/></g>
+<circle cx="12" cy="82" r="2.2" fill="#69b8e5" stroke="#e4f5ff" stroke-width=".5"/><text x="12" y="87" fill="#e4f5ff" font-size="2.5" text-anchor="middle">START</text>
+<rect x="49" y="27" width="4" height="4" fill="#f4e68b" stroke="#fff5bb" stroke-width=".4"/><text x="55" y="29" fill="#fff5bb" font-size="2.4">OBJECTIVE</text>
+<circle cx="84" cy="88" r="5" fill="none" stroke="#69b8e5" stroke-width=".7"/><text x="84" y="95" fill="#e4f5ff" font-size="2.5" text-anchor="middle">EXTRACT</text>
+<text x="7" y="45" fill="#ffd0c6" font-size="2.7">WEST BREACH</text><text x="29" y="70" fill="#c8f0d8" font-size="2.7">SOUTH PERIMETER</text><text x="89" y="67" fill="#ffd0c6" font-size="2.7" text-anchor="end">EAST SERVICE</text>
+<text x="50" y="98" fill="#d6d8d0" font-size="2.4" text-anchor="middle">OPERATION EAGLE NEST — GREYBOX LAYOUT (NOT TO SCALE)</text></svg>

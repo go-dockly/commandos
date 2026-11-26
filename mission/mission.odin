@@ -4,7 +4,9 @@ import "core:encoding/json"
 import "core:fmt"
 import "core:math"
 import "core:os"
+import "core:path/filepath"
 
+import "../gamemap"
 import "../geom"
 
 MISSION_DEFAULT_BOUNDS :: geom.Bounds{width = 100, height = 100}
@@ -40,6 +42,9 @@ Extraction :: struct {
 // import actors.
 Guard_Def :: struct {
     id: string,
+    // On a map: the height of the floor the route is on, metres (a tower's
+    // roof); 0 the ground. Each point lands on the floor nearest it.
+    height: f32,
     speed: f32,
     pause_duration: f32 `json:"pauseDuration"`,
     patrol: []geom.Point,
@@ -54,11 +59,21 @@ Mission :: struct {
     walls: []geom.Wall,
     cover: []geom.Cover,
     guards: []Guard_Def,
+    // The gameplay map, relative to the mission file; "" plays on the 2D
+    // geometry. With a map, positions are map metres (map.odin).
+    map_file: string `json:"map"`,
     // Filled by bake / ensure_baked. Not present in JSON.
     geometry: geom.Geometry,
+    // Filled by load when map_file is set, or by hand in tests.
+    game_map: gamemap.Map `json:"-"`,
+    has_map: bool `json:"-"`,
 }
 
 bounds :: proc(lvl: ^Mission) -> geom.Bounds {
+    if lvl.has_map {
+        m := &lvl.game_map
+        return {f32(m.w) * m.cell, f32(m.h) * m.cell}
+    }
     b := lvl.bounds
     if b.width <= 0 do b.width = MISSION_DEFAULT_BOUNDS.width
     if b.height <= 0 do b.height = MISSION_DEFAULT_BOUNDS.height
@@ -85,6 +100,19 @@ load :: proc(path: string) -> (Mission, bool) {
         lvl.bounds.height = MISSION_DEFAULT_BOUNDS.height
     }
     lvl.geometry = bake(&lvl)
+    if lvl.map_file != "" {
+        map_path := lvl.map_file
+        if !filepath.is_abs(map_path) {
+            map_path, _ = filepath.join({filepath.dir(path), lvl.map_file}, context.temp_allocator)
+        }
+        m, err := gamemap.load(map_path)
+        if err != .None {
+            fmt.eprintfln("mission: map %s: %v", map_path, err)
+            return {}, false
+        }
+        lvl.game_map = m
+        lvl.has_map = true
+    }
     return lvl, true
 }
 
@@ -187,4 +215,6 @@ point_collides :: proc(
 // ownership in a follow-up).
 destroy :: proc(lvl: ^Mission) {
     geom.destroy(&lvl.geometry)
+    if lvl.has_map do gamemap.destroy(&lvl.game_map)
+    lvl.has_map = false
 }

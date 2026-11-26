@@ -1,6 +1,9 @@
 
 package nav
 
+import "core:math"
+
+import "../gamemap"
 import "../mission"
 import "../geom"
 
@@ -9,6 +12,18 @@ DIAGONAL_COST :: 1.41421356237
 Path :: struct {
     points: []geom.Point,
     found: bool,
+    // On a map only (nil on 2D missions): the floor height at each point,
+    // and for a point reached by a link (a ladder, stairs) the seconds the
+    // link takes, 0 walked.
+    heights: []f32,
+    link_times: []f32,
+}
+
+path_destroy :: proc(p: ^Path) {
+    delete(p.points)
+    delete(p.heights)
+    delete(p.link_times)
+    p^ = {}
 }
 
 Node :: struct {
@@ -97,12 +112,19 @@ nav_heuristic :: proc(x, y, goal_x, goal_y: int) -> f32 {
     return f32(diagonal) * DIAGONAL_COST + f32(straight)
 }
 
+// On a map, start_h and goal_h pick the floors (gamemap.node_at: the
+// highest at or under the height, else the lowest), and guard keeps the
+// route out of No_Guards cells.
 find_path :: proc(
     level: ^mission.Mission,
     start: geom.Point,
     goal: geom.Point,
     radius: f32,
+    start_h: f32 = 0,
+    goal_h: f32 = 0,
+    guard := false,
 ) -> Path {
+    if level.has_map do return find_map_path(level, start, goal, start_h, goal_h, guard)
     result := Path{}
     grid_w, grid_h := nav_grid_dims(level)
     cell_count := grid_w * grid_h
@@ -243,5 +265,34 @@ find_path :: proc(
         }
     }
 
+    return result
+}
+
+// The map's A*, as a Path: the start itself, then cell centres. Its
+// clearance is the body's, rounded up to whole cells, so whatever it routes
+// through a body fits (mission.step_collides).
+find_map_path :: proc(level: ^mission.Mission, start, goal: geom.Point, start_h, goal_h: f32, guard: bool) -> Path {
+    m := &level.game_map
+    from, fok := gamemap.node_at(m, {start.x, start.y, start_h})
+    to, tok := gamemap.node_at(m, {goal.x, goal.y, goal_h})
+    if !fok || !tok do return {}
+    clear_cells := math.ceil(max(mission.MAP_BODY_RADIUS - m.cell / 2, 0) / m.cell)
+    agent := gamemap.Agent{radius = clear_cells * m.cell, guard = guard}
+    p := gamemap.find_path(m, from, to, agent, context.temp_allocator)
+    if !p.found do return {}
+    n := len(p.nodes)
+    result := Path{
+        points = make([]geom.Point, n),
+        heights = make([]f32, n),
+        link_times = make([]f32, n),
+        found = true,
+    }
+    for node, i in p.nodes {
+        c := gamemap.node_point(m, node)
+        result.points[i] = {c.x, c.y}
+        result.heights[i] = c.z
+        if l := p.links[i]; l >= 0 do result.link_times[i] = gamemap.link_cost(m.links[l])
+    }
+    result.points[0] = start
     return result
 }

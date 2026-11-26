@@ -30,7 +30,9 @@ update :: proc(world: ^World, input: Input, dt: f32) {
     guards := world.guards
     lvl := &world.level
 
-    // 1. Update player movement and deliver emitted footsteps.
+    // 1. Update player movement and deliver emitted footsteps. Interact
+    //    next to a ladder (on a map) takes it instead of the objective.
+    took_link := input.interact && actors.player_try_link(player, lvl)
     if actors.player_update(player, input, lvl, dt) {
         noise := actors.Noise_Event{
             position = player.position,
@@ -57,6 +59,9 @@ update :: proc(world: ^World, input: Input, dt: f32) {
             player.position,
             lvl,
             vision,
+            observer_h = guard.h,
+            target_h = player.h,
+            target_stance = actors.player_stance(player^),
         )
 
         guard.player_visible = sees_player
@@ -74,7 +79,9 @@ update :: proc(world: ^World, input: Input, dt: f32) {
     actors.guard_update(guards, lvl, dt)
 
     // 4. Objective and extraction progression.
-    mission_progress_update(world, input)
+    progress := input
+    if took_link do progress.interact = false
+    mission_progress_update(world, progress)
 }
 
 // Ends the mission in failure if a guard has touched the player. Otherwise

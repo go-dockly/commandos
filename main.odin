@@ -45,7 +45,7 @@ main :: proc() {
     world := game.world_init(level)
     defer game.world_destroy(&world)
 
-    cam := camera.init(render.point_to_world(world.player.position, 1), 65)
+    cam := camera.init(render.point_to_world(world.player.position, world.player.h + 1), 65)
     cam.follows = true
 
     nav_debug_path := nav.Path{}
@@ -83,7 +83,7 @@ main :: proc() {
         }
 
         camera.update(&cam, dt)
-        camera.follow(&cam, render.point_to_world(world.player.position, 1), dt)
+        camera.follow(&cam, render.point_to_world(world.player.position, world.player.h + 1), dt)
 
         rl.BeginDrawing()
         rl.ClearBackground(rl.RAYWHITE)

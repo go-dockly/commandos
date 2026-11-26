@@ -34,16 +34,19 @@ guard_investigation_path_prepare :: proc(
     guard.investigation.goal_y = goal_y
     guard.investigation.ready = true
 
+    // the target's floor: the one nearest the guard's own, or the only one
+    // there (the player on a roof)
     path := nav.find_path(
         level,
         guard.position,
         target,
         guard.radius,
+        start_h = guard.h,
+        goal_h = guard.h,
+        guard = true,
     )
 
-    guard.investigation.path = path.points
-    guard.investigation.index = 0
-    guard.investigation.found = path.found
+    path_follower_take(&guard.investigation, path)
 }
 
 // ---------------------------------------------------------------------------

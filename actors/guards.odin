@@ -1,6 +1,7 @@
 package actors
 
 import "../mission"
+import "../nav"
 import "../geom"
 import "core:math"
 
@@ -19,6 +20,13 @@ Guard_Behaviour :: enum u8 {
 // Shared path-walking state used by patrol, investigation and recovery.
 Path_Follower :: struct {
     path:  []geom.Point,
+    // On a map: the floor height at each point, and the seconds a link
+    // (ladder, stairs) to that point takes, 0 walked. nil on 2D missions.
+    heights:    []f32,
+    link_times: []f32,
+    link_spent: f32,        // seconds into the link being taken
+    link_from:  geom.Point, // and where it started
+    link_from_h: f32,
     index: int,
     ready: bool,
     found: bool,
@@ -49,6 +57,8 @@ Guard_Search :: struct {
 Guard :: struct {
     id:                 string,
     position:           geom.Point,
+    h:                  f32, // floor height, metres (0 on 2D missions)
+    route_h:            f32, // the floor its patrol is on (Guard_Def.height)
     facing:             geom.Point,
     awareness:          Guard_Awareness,
     behaviour:          Guard_Behaviour,
@@ -78,12 +88,27 @@ GUARD_SEARCH_SWEEPS :: 2
 
 path_follower_clear :: proc(f: ^Path_Follower) {
     delete(f.path)
+    delete(f.heights)
+    delete(f.link_times)
     f.path = nil
+    f.heights = nil
+    f.link_times = nil
+    f.link_spent = 0
     f.index = 0
     f.ready = false
     f.found = false
     f.goal_x = 0
     f.goal_y = 0
+}
+
+// Takes over a found path (the follower must be clear).
+path_follower_take :: proc(f: ^Path_Follower, path: nav.Path) {
+    f.path = path.points
+    f.heights = path.heights
+    f.link_times = path.link_times
+    f.index = 0
+    f.link_spent = 0
+    f.found = path.found
 }
 
 // Attempt a single collision-checked step toward `target`.
@@ -117,11 +142,13 @@ guard_step_toward :: proc(
         y = guard.position.y + direction.y * step,
     }
 
-    if mission.point_collides(lvl, candidate, guard.radius) {
+    blocked_, h := mission.step_collides(lvl, candidate, guard.radius, guard.h, guard = true)
+    if blocked_ {
         return 0, true
     }
 
     guard.position = candidate
+    guard.h = h
     guard.facing = direction
     return step / guard.speed, false
 }
@@ -149,6 +176,31 @@ follow_path :: proc(
         }
 
         target := follower.path[follower.index]
+        if follower.index < len(follower.link_times) && follower.link_times[follower.index] > 0 {
+            // a link: no walking, the guard is on it for its time
+            total := follower.link_times[follower.index]
+            if follower.link_spent == 0 {
+                follower.link_from = guard.position
+                follower.link_from_h = guard.h
+            }
+            take := min(remaining, total - follower.link_spent)
+            follower.link_spent += take
+            remaining -= take
+            t := follower.link_spent / total
+            to_h := follower.heights[follower.index]
+            guard.position = {
+                follower.link_from.x + (target.x - follower.link_from.x) * t,
+                follower.link_from.y + (target.y - follower.link_from.y) * t,
+            }
+            guard.h = follower.link_from_h + (to_h - follower.link_from_h) * t
+            if follower.link_spent >= total {
+                guard.position = target
+                guard.h = to_h
+                follower.link_spent = 0
+                follower.index += 1
+            }
+            continue
+        }
         consumed, blocked := guard_step_toward(guard, target, lvl, remaining)
         if blocked {
             path_follower_clear(follower)
@@ -227,6 +279,7 @@ guards_init :: proc(lvl: ^mission.Mission) -> []Guard {
         if len(definition.patrol) > 0 {
             position = definition.patrol[0]
         }
+        h, _ := mission.floor_at(lvl, position, definition.height)
         target_index := 0
         if len(definition.patrol) > 1 {
             target_index = 1
@@ -234,6 +287,8 @@ guards_init :: proc(lvl: ^mission.Mission) -> []Guard {
         guards[i] = Guard{
             id = definition.id,
             position = position,
+            h = h,
+            route_h = definition.height,
             facing = {1, 0},
             awareness = guard_awareness_init(),
             behaviour = .PATROL,

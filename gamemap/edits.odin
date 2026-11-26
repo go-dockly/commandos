@@ -226,10 +226,11 @@ apply_edits :: proc(m: ^Map, edits: []Edit, allocator := context.allocator) -> [
                 reindex(m)
                 dirty = false
             }
-            a, a_ok := node_at(m, e.a)
-            b, b_ok := node_at(m, e.b)
+            a, a_ok := link_end(m, e.a)
+            b, b_ok := link_end(m, e.b)
             if !a_ok || !b_ok {
-                report(&problems, e, "link end %s is not on a floor", "a" if !a_ok else "b")
+                end := e.a if !a_ok else e.b
+                report(&problems, e, "link end %s: no floor within %.1f m of h %.2f at %.2f, %.2f", "a" if !a_ok else "b", LINK_END_REACH, end.z, end.x, end.y)
                 continue
             }
             if e.link == .Drop {
@@ -268,8 +269,8 @@ apply_edits :: proc(m: ^Map, edits: []Edit, allocator := context.allocator) -> [
             }
             reindex(&inner)
             append(&m.interiors, Interior{id = clone(m, e.id), building = clone(m, e.target), m = inner})
-            outside, out_ok := node_at(m, e.a)
-            inside, in_ok := node_at(&m.interiors[len(m.interiors) - 1].m, e.b)
+            outside, out_ok := link_end(m, e.a)
+            inside, in_ok := link_end(&m.interiors[len(m.interiors) - 1].m, e.b)
             if !out_ok || !in_ok {
                 report(&problems, e, "the interior's door end %s is not on a floor", "a" if !out_ok else "b")
                 continue
@@ -288,6 +289,26 @@ apply_edits :: proc(m: ^Map, edits: []Edit, allocator := context.allocator) -> [
     compute_cover(m)
     m.stamped = true
     return problems[:]
+}
+
+// How far a link end's height may be from the floor it lands on.
+LINK_END_REACH :: f32(1)
+
+// The floor a link end stands on: the cell's floor nearest its height, if
+// that is within LINK_END_REACH. A foot put inside a building (its cell
+// has only the roof) is refused, not moved onto the roof.
+link_end :: proc(m: ^Map, p: [3]f32) -> (Node, bool) {
+    x, y, inside := cell_of(m, p.xy)
+    if !inside do return {}, false
+    best, best_d := -1, LINK_END_REACH
+    for li in layers_at(m, x, y) {
+        h, _ := height(m, Node{li, i32(x), i32(y)})
+        if d := abs(h - p.z); d <= best_d {
+            best, best_d = int(li), d
+        }
+    }
+    if best < 0 do return {}, false
+    return Node{u16(best), i32(x), i32(y)}, true
 }
 
 feature_index :: proc(m: ^Map, id: string) -> int {

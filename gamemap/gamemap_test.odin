@@ -189,6 +189,18 @@ links_and_abilities :: proc(t: ^testing.T) {
     }, context.temp_allocator)
     testing.expect_value(t, len(problems), 1)
     if len(problems) == 1 do testing.expect_value(t, problems[0].edit, "jump")
+
+    // a ladder whose foot is inside the building (only the roof there) is
+    // refused, not turned into a roof-to-roof link
+    m3 := street(30, 20)
+    defer destroy(&m3)
+    append(&m3.features, Feature{id = "b1", kind = .Building, footprint = rings(rect(10, 5, 20, 15)), height = 6})
+    bad := apply_edits(&m3, []Edit{
+        {id = "roof", kind = .Building, target = "b1", walkable_roof = true},
+        {id = "ladder", kind = .Link, link = .Ladder, a = {10.5, 10.5, 0}, b = {11.5, 10.5, 6}},
+    }, context.temp_allocator)
+    testing.expect_value(t, len(bad), 1)
+    testing.expect_value(t, len(m3.links), 0)
 }
 
 @(test)

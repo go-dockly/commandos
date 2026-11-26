@@ -1,6 +1,7 @@
 package game
 
 import "../actors"
+import "../gamemap"
 import "../geom"
 import "../mission"
 
@@ -32,6 +33,7 @@ world_reset :: proc(world: ^World) {
     actors.guards_destroy(world.guards)
 
     world.player = actors.player_init(world.level.player_spawn)
+    world.player.h, _ = mission.floor_at(&world.level, world.level.player_spawn)
     world.guards = actors.guards_init(&world.level)
 
     // A mission without an objective never gates extraction.
@@ -42,6 +44,8 @@ world_reset :: proc(world: ^World) {
 world_destroy :: proc(world: ^World) {
     actors.guards_destroy(world.guards)
     geom.destroy(&world.level.geometry)
+    if world.level.has_map do gamemap.destroy(&world.level.game_map)
+    world.level.has_map = false
     world.guards = nil
 }
 

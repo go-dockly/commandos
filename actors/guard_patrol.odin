@@ -30,13 +30,14 @@ guard_patrol_path_prepare :: proc(
         guard.position,
         guard.patrol.points[guard.patrol.target_index],
         guard.radius,
+        start_h = guard.h,
+        goal_h = guard.route_h,
+        guard = true,
     )
 
-    guard.patrol.route.path = path.points
-    guard.patrol.route.index = 0
+    path_follower_take(&guard.patrol.route, path)
     guard.patrol.route.goal_x = guard.patrol.target_index
     guard.patrol.route.ready = true
-    guard.patrol.route.found = path.found
 }
 
 guard_arrive :: proc(guard: ^Guard) {

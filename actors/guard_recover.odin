@@ -71,6 +71,9 @@ guard_recover_update :: proc(
             // Snap onto the patrol point (preserves previous behaviour).
             target := guard.patrol.points[guard.patrol.target_index]
             guard.position = target
+            if len(guard.patrol.route.heights) > 0 {
+                guard.h = guard.patrol.route.heights[len(guard.patrol.route.heights) - 1]
+            }
             guard.patrol.target_index =
                 (guard.patrol.target_index + 1) % len(guard.patrol.points)
             guard.patrol.pause_remaining = guard.patrol.pause_duration

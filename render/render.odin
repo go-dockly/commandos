@@ -2,6 +2,7 @@ package render
 
 import "../actors"
 import "../game"
+import "../gamemap"
 import "../mission"
 import "../nav"
 import "../geom"
@@ -30,8 +31,12 @@ world :: proc(world: game.World, debug_path: nav.Path) {
     // bounds takes a pointer, so give it a local copy to point at.
     lvl := world.level
 
-    render_ground(&lvl)
-    render_geometry(world.level.geometry)
+    if lvl.has_map {
+        render_map(&lvl.game_map)
+    } else {
+        render_ground(&lvl)
+        render_geometry(world.level.geometry)
+    }
     render_debug_path(debug_path)
     render_objective(world)
     render_extraction(world)
@@ -146,13 +151,14 @@ PLAYER_FACING_INDICATOR_LENGTH :: 2.5
 GUARD_FACING_INDICATOR_LENGTH  :: 1.8
 
 render_player :: proc(player: actors.Player) {
-    position := point_to_world(player.position, 1)
+    lift: f32 = 0.6 if player.crouched else 1
+    position := point_to_world(player.position, player.h + lift)
     facing_tip := point_to_world(
         {
             player.position.x + player.facing.x * PLAYER_FACING_INDICATOR_LENGTH,
             player.position.y + player.facing.y * PLAYER_FACING_INDICATOR_LENGTH,
         },
-        1,
+        player.h + lift,
     )
 
     rl.DrawSphere(position, player.radius, rl.BLUE)
@@ -161,13 +167,13 @@ render_player :: proc(player: actors.Player) {
 
 render_guards :: proc(guards: []actors.Guard) {
     for guard in guards {
-        position := point_to_world(guard.position, 1)
+        position := point_to_world(guard.position, guard.h + 1)
         facing_tip := point_to_world(
             {
                 guard.position.x + guard.facing.x * GUARD_FACING_INDICATOR_LENGTH,
                 guard.position.y + guard.facing.y * GUARD_FACING_INDICATOR_LENGTH,
             },
-            1,
+            guard.h + 1,
         )
 
         color := rl.RED
@@ -180,5 +186,76 @@ render_guards :: proc(guards: []actors.Guard) {
 
         rl.DrawSphere(position, guard.radius, color)
         rl.DrawLine3D(position, facing_tip, rl.MAROON)
+    }
+}
+MAP_FLOOR_COLOURS := [gamemap.Surface]rl.Color{
+    .Ground = {150, 152, 140, 255},
+    .Road   = {170, 170, 166, 255},
+    .Grass  = {110, 150, 90, 255},
+    .Gravel = {170, 160, 130, 255},
+    .Roof   = {196, 120, 84, 255},
+    .Floor  = {170, 150, 120, 255},
+    .Water  = {80, 120, 170, 255},
+    .Deep   = {40, 60, 110, 255},
+}
+
+// The gameplay map, the way the rules see it: each floor a thin slab at its
+// height, each solid span a box (buildings, walls, cars; canopies green and
+// floating). Runs of equal cells along x are merged into one box, so a
+// street-sized map is a few thousand draws, not one per cell.
+render_map :: proc(m: ^gamemap.Map) {
+    c := m.cell
+    SLAB :: f32(0.06)
+    for &l, li in m.layers {
+        for ly in 0 ..< l.h {
+            lx := 0
+            for lx < l.w {
+                i := ly * l.w + lx
+                if l.height[i] == gamemap.NO_FLOOR {
+                    lx += 1
+                    continue
+                }
+                run := 1
+                for lx + run < l.w && l.height[i + run] == l.height[i] && l.surface[i + run] == l.surface[i] do run += 1
+                h := gamemap.metres(l.height[i])
+                x0 := f32(l.x + lx) * c
+                y0 := f32(l.y + ly) * c
+                col := MAP_FLOOR_COLOURS[l.surface[i]]
+                if li > 0 do col = MAP_FLOOR_COLOURS[.Roof]
+                rl.DrawCube({x0 + f32(run) * c * 0.5, h - SLAB * 0.5, y0 + c * 0.5}, f32(run) * c, SLAB, c, col)
+                lx += run
+            }
+        }
+    }
+    for y in 0 ..< m.h {
+        for k in 0 ..< gamemap.SPANS {
+            x := 0
+            for x < m.w {
+                s := m.spans[y * m.w + x][k]
+                if s.top <= s.bottom {
+                    x += 1
+                    continue
+                }
+                run := 1
+                for x + run < m.w && m.spans[y * m.w + x + run][k] == s do run += 1
+                lo := max(gamemap.metres(s.bottom), 0)
+                hi := gamemap.metres(s.top)
+                ground, _ := gamemap.height(m, {0, i32(x), i32(y)})
+                canopy := lo > ground + 1
+                col := rl.Color{90, 130, 80, 255} if canopy else rl.Color{150, 110, 80, 255}
+                centre := rl.Vector3{(f32(x) + f32(run) * 0.5) * c, (lo + hi) * 0.5, (f32(y) + 0.5) * c}
+                rl.DrawCube(centre, f32(run) * c, hi - lo, c, col)
+                rl.DrawCubeWires(centre, f32(run) * c, hi - lo, c, rl.Fade(rl.DARKGRAY, 0.4))
+                x += run
+            }
+        }
+    }
+    for l in m.links {
+        if l.a.interior != "" || l.b.interior != "" do continue
+        a := gamemap.node_point(m, {u16(l.a.layer), i32(l.a.x), i32(l.a.y)})
+        b := gamemap.node_point(m, {u16(l.b.layer), i32(l.b.x), i32(l.b.y)})
+        rl.DrawLine3D({a.x, a.z + 0.1, a.y}, {b.x, b.z + 0.1, b.y}, rl.YELLOW)
+        rl.DrawSphere({a.x, a.z + 0.2, a.y}, 0.2, rl.YELLOW)
+        rl.DrawSphere({b.x, b.z + 0.2, b.y}, 0.2, rl.YELLOW)
     }
 }

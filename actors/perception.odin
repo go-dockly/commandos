@@ -1,6 +1,7 @@
 
 package actors
 
+import "../gamemap"
 import "../mission"
 import "../geom"
 import "core:math"
@@ -97,12 +98,20 @@ mission_line_blocked :: proc(
 //
 // facing and positions use the mission's 2D coordinate space.
 // fov_cos is the cosine of the half-angle of the vision cone.
+//
+// On a map, height decides sight: the observer's eye stands EYE above its
+// floor (observer_h), the target's body points above its own (target_h) in
+// its stance, and gamemap's ray against the solid spans decides. A guard in
+// a tower sees over a wall; someone crouching behind a car is hidden.
 guard_can_see :: proc(
     observer: geom.Point,
     facing: geom.Point,
     target: geom.Point,
     level: ^mission.Mission,
     vision: Vision_Config,
+    observer_h: f32 = 0,
+    target_h: f32 = 0,
+    target_stance := gamemap.Stance.Standing,
 ) -> bool {
     dx := target.x - observer.x
     dy := target.y - observer.y
@@ -137,5 +146,9 @@ guard_can_see :: proc(
         return false
     }
 
+    if level.has_map {
+        eye := gamemap.eye_point({observer.x, observer.y, observer_h}, .Standing)
+        return gamemap.can_see_body(&level.game_map, eye, {target.x, target.y, target_h}, target_stance)
+    }
     return !mission_line_blocked(level, observer, target)
 }

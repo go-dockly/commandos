@@ -1,0 +1,35 @@
+# The simulation needs no window: every package but main is tested here,
+# gamemap (the gameplay map shared with sandtable) with -vet -strict-style.
+
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: laytan/setup-odin@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          release: latest
+
+      - name: vet gamemap
+        run: odin check gamemap -no-entry-point -vet -strict-style
+
+      - name: gamemap
+        run: odin test gamemap
+
+      - name: actors
+        run: odin test actors
+
+      - name: nav
+        run: odin test nav
+
+      - name: game
+        run: odin test game

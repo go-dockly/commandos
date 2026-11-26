@@ -30,6 +30,12 @@ A small, deliberately readable infiltration sandbox for the Commandos-inspired p
 
 The README's original first-implementation checklist is therefore historical, not a list of work that is still wholly outstanding.
 
+## Gameplay map (`gamemap/`)
+
+The layered grid sandtable builds from a capture and the game will play on (sandtable's `docs/map_spec.md`): layer 0 the ground, upper layers roofs and floors, solid spans per cell for sight, links (stairs, ladders, doors, windows, drops, climbs) between places walking can't join, and interiors as maps of their own. It holds the format (`.map.json` plus little-endian `.map.bin`), one A* over (layer, x, y) nodes and links, `can_see` (a 3D ray against spans) with stance heights, `visible` for drawing a cone, and the edits sandtable applies. No raylib, no clock, no randomness. sandtable imports it with `-collection:cmd=../commandos`.
+
+`odin test gamemap`: 14 tests. On a 400 × 400 cell town (200 m at 0.5 m) a corner-to-corner path takes about 40 ms with `-o:speed`, a 30 m cone under 1 ms. The game does not play on it yet: missions still use the 2D geometry below.
+
 ## Test coverage already present
 
 | Test file | Existing coverage |
